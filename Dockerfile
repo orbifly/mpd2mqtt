@@ -1,0 +1,24 @@
+# https://docs.docker.com/get-started/part2/#define-a-container-with-a-dockerfile
+
+# Use an official image including 'apt' and 'bash' as parent
+FROM ubuntu:18.04
+
+# Upgrade and add some software we need: mpc and mqtt client
+RUN apt update && apt -y upgrade; apt install -y mpc; apt install -y wget && wget https://github.com/hivemq/mqtt-cli/releases/download/v4.4.0/mqtt-cli-4.4.0.deb && apt install -y ./mqtt-cli-4.4.0.deb
+
+# Set the working directory to /mpd2mqtt
+WORKDIR /mpd2mqtt
+
+# Copy the current directory contents into the container at /mpd2mqtt
+ADD . /mpd2mqtt
+
+# Run script when the container launches
+CMD ["/mpd2mqtt/mpd2mqtt.sh", "--debug=1", "--mpd-server=localhost", "--mpd-password=secret", "--mqtt-server=localhost"]
+# All possible options:
+# --mpd-server=
+# --mpd-password=
+# --mpd-port=
+# --mqtt-server=
+# --mqtt-topic-get=
+# --mqtt-topic-set=
+# --debug=     #set to 1 for some messages
