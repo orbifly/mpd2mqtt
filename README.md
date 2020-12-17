@@ -28,6 +28,13 @@ It's possible to change options by:
 To debug or check it you can use the commandline mqtt client, from https://github.com/hivemq/mqtt-cli:
    mqtt sub -h localhost -t "music/mpd/set" -m '{"player":"toggle"}'
 
+How to checkout and create a docker container and run it:
+cd /opt
+git clone https://github.com/orbifly/mpd2mqtt.git
+cd ./mpd2mqtt/
+docker build -t mpd2mqtt .
+docker run --name my_mpd2mqtt mpd2mqtt
+
 Some words about security:
 The idea for this is to make the connection between a frontend system (in my case noder-red) and a MPD backend lightweight and indirect. So it ist easy to run it on different server, just connected over MQTT. It will increase security as well, because you don't need access to a commandline from node-red (exec-node).
 I tried to avoid to hand over unquoted strings from MQTT to MPD in my script. But I cannot guarantee for a security. So this software is not for any sensitive use.
