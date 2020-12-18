@@ -119,7 +119,7 @@ update_mpd_player_state()
 update_mpd_playlist_state()
 {
   albums=$( mpc --host="${mpd_host}" --port="${mpd_port}" playlist --format "%artist% - %album%" | sort | uniq )
-  album_count=$( echo "${albums}" | grep -c ".*" )
+  album_count=$( echo "${albums}" | grep -c "..*" )
   if [ "${album_count}" = "1" ]
   then
     echo "Message:  {\"playlist\": { \"type\": \"album\", \"album\" : \"${albums}\" } }"
@@ -127,7 +127,7 @@ update_mpd_playlist_state()
     return
   fi
   folders=$( mpc --host="${mpd_host}" --port="${mpd_port}" playlist --format "%file%" | sed "s#/[^/]*\$##" | sort | uniq )
-  folder_count=$( echo "${folders}" | grep -c ".*" )
+  folder_count=$( echo "${folders}" | grep -c "..*" )
   if [ "${folder_count}" = "1" ]
   then
     echo "Message:  {\"playlist\": { \"type\": \"folder\", \"folder\" : \"${folder}\" } }"
