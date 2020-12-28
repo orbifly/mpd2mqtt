@@ -6,13 +6,40 @@ The connection is both-ways: If any client changes the state of MPD the MQTT wil
 
 ## MPD -> MQTT ##
 On change of the current title or toggeling between playing and pause on MPD you will get a message on MQTT at topic *music/mpd/get* like:
-`{"player":{"current":{"name":"","artist":"Billy Talent","album":"Billy Talent III","albumartist":"","comment":"","composer":"","date":"2009","originaldate":"%originaldate%","disc":"","genre":"","performer":"","title":"Saint Veronika","track":"","time":"4:10","file":"Alben/Billy Talent - Billy Talent III/03 - Billy Talent - Saint Veronika.mp3","position":"16","id":"67","prio":"0","mtime":"Mon Dec 27 16:42:15 2010","mdate":"12/27/10"},"state":"paused"}}`
+
+    {
+      "player": {
+        "current": {
+          "name": "",
+          "artist": "Billy Talent",
+          "album": "Billy Talent III",
+          "albumartist": "",
+          "comment": "",
+          "composer": "",
+          "date": "2009",
+          "originaldate": "%originaldate%",
+          "disc": "",
+          "genre": "",
+          "performer": "",
+          "title": "Saint Veronika",
+          "track": "",
+          "time": "4:10",
+          "file": "Alben/Billy Talent - Billy Talent III/03 - Billy Talent - Saint Veronika.mp3",
+          "position": "16",
+          "id": "67",
+          "prio": "0",
+          "mtime": "Mon Dec 27 16:42:15 2010",
+          "mdate": "12/27/10"
+        },
+        "state": "paused"
+      }
+    }
 
 The current options of MPD will be send in a message like:
-`{"options":{"volume":"98%","repeat":"on","random":"off","single":"off","consume":"off"}}`
+`{ "options": { "volume": "98%", "repeat": "on", "random": "off", "single": "off", "consume": "off" }}`
 
 About the playlist/queue it's not so easy to get something out of MPD, so there could be 3 cases:
-* We don't know anything about the playlist: `{"playlist":{"type":"unknown"}}`
+* We don't know anything about the playlist: `{ "playlist": { "type": "unknown" } }`
 * All songs are from the same album: `{"playlist": { "type": "album", "album" : "The Rasmus - Dead Letters" } }`
 * All songs are from a common folder: `{"playlist": { "type": "folder", "folder" : "MixedMusic/preferredSongs" } }`
 In my eyes it's not a good way to send the whole list of songs in playlist to MQTT.
@@ -22,9 +49,9 @@ To debug or check it you can use the commandline mqtt client, from https://githu
 
 ## MQTT -> MPD ##
 You can change the payers state by, sending something to the topic *music/mpd/set*.
-* `{"player":"play"}`
-* `{"player":"pause"}`
-* `{"player":"toggle"}`
+* `{"player": "play"}`
+* `{"player": "pause"}`
+* `{"player": "toggle"}`
 
 It's possible to change options by:
 * `{"options": { "random": "on"} }`
@@ -53,11 +80,12 @@ To debug or check it you can use the commandline mqtt client, from https://githu
       
 ### How to integrate in docker-compose: ###
 Create a docker-compose.yml or extend a existing one. This project fits to [ct-Smart-Home](https://github.com/ct-Open-Source/ct-Smart-Home).
-      `mpd2mqtt:
+
+      mpd2mqtt:
         image: "mpd2mqtt"
         volumes:
            - /opt/config_mpd2mqtt:/data
-        restart: always`
+        restart: always
 
 
 ## Some words about security: ##
