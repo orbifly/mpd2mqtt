@@ -53,11 +53,11 @@ To debug or check it you can use the commandline mqtt client, from https://githu
       
 ### How to integrate in docker-compose: ###
 Create a docker-compose.yml or extend a existing one. This project fits to [ct-Smart-Home](https://github.com/ct-Open-Source/ct-Smart-Home).
-        mpd2mqtt:
-          image: "mpd2mqtt"
-          volumes:
-            - /opt/config_mpd2mqtt:/data
-          restart: always
+      `mpd2mqtt:
+        image: "mpd2mqtt"
+        volumes:
+           - /opt/config_mpd2mqtt:/data
+        restart: always`
 
 
 ## Some words about security: ##
