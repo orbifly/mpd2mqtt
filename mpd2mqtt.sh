@@ -2,6 +2,7 @@
 
 echo "Started mpd2mqtt.sh '$0' $@"
 
+# Default parameter setting
 mpd_server="localhost"
 mpd_password=""
 mpd_port=""
@@ -9,6 +10,18 @@ mqtt_server="localhost"
 mqtt_topic_get="music/mpd/get"
 mqtt_topic_set="music/mpd/set"
 debug="1"
+if [ -f "/data/mpd2mqtt.config" ]
+then
+  # Read parameters from config file
+  eval "$( grep --regexp="^[a-z][a-z_]*='[^']*'" "/data/mpd2mqtt.config" )"
+  if [ "${debug}" != "0" ]; then echo "Read parameters from '/data/mpd2mqtt.config'"; fi
+else
+  if [ -f "./example.config" ]
+  then
+    if [ "${debug}" != "0" ]; then echo "Create config file: /data/mpd2mqtt.config"; fi
+    cp "./example.config" "/data/mpd2mqtt.config"
+  fi
+fi
 invalidate_file=$( tempfile )
 
 read_parameters()

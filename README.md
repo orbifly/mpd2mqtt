@@ -38,14 +38,30 @@ To debug or check it you can use the commandline mqtt client, from https://githu
       cd /opt
       git clone https://github.com/orbifly/mpd2mqtt.git
       cd ./mpd2mqtt/
-      sudo nano Dockerfile
-      #Change the options in 'CMD'-line to fit your requirements.
-      #CMD ["/mpd2mqtt/mpd2mqtt.sh", "--debug=1", "--mpd-server=localhost", "--mpd-password=secret", "--mqtt-server=localhost"]
       docker build -t mpd2mqtt .
-      docker run --name my_mpd2mqtt mpd2mqtt
+      #On your host, create a folder for a config file
+      mkdir /opt/config_mpd2mqtt
+      #Start the continer once 
+      docker run --name my_mpd2mqtt -v /opt/config_mpd2mqtt:/data mpd2mqtt
+      #Stop the container after some seconds
+      docker container stop my_mpd2mqtt
+      #Now there is a file /opt/config_mpd2mqtt/mpd2mqtt.config
+      #Edit this file to fit your requirements
+      nano /opt/config_mpd2mqtt/mpd2mqtt.config
+      #Now the container is ready to run
+      docker run --name my_mpd2mqtt -v /opt/config_mpd2mqtt:/data mpd2mqtt
+      
+### How to integrate in docker-compose: ###
+Create a docker-compose.yml or extend a existing one. This project fits to [ct-Smart-Home](https://github.com/ct-Open-Source/ct-Smart-Home).
+        mpd2mqtt:
+          image: "mpd2mqtt"
+          volumes:
+            - /opt/config_mpd2mqtt:/data
+          restart: always
+
 
 ## Some words about security: ##
-The idea for this is to make the connection between a frontend system (in my case noder-red) and a MPD backend lightweight and indirect. So it ist easy to run it on different server, just connected over MQTT. It will increase security as well, because you don't need access to a commandline from node-red (exec-node).
+The idea for this is to make the connection between a frontend system (in my case node-red) and a MPD backend lightweight and indirect. So it is easy to run it on different server, just connected over MQTT. It will increase security as well, because you don't need access to a command line from node-red (exec-node).
 I tried to avoid to hand over unquoted strings from MQTT to MPD in my script. But I cannot guarantee for a security. So this software is not for any sensitive use.
 
 ## History ##

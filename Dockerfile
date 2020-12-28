@@ -4,16 +4,22 @@
 FROM ubuntu:18.04
 
 # Upgrade and add some software we need: mpc and mqtt client
-RUN apt update && apt -y upgrade; apt install -y mpc; apt install -y wget && wget https://github.com/hivemq/mqtt-cli/releases/download/v4.4.0/mqtt-cli-4.4.0.deb && apt install -y ./mqtt-cli-4.4.0.deb
+RUN apt update && apt -y upgrade; apt install -y mpc iputils-ping; apt install -y wget && wget https://github.com/hivemq/mqtt-cli/releases/download/v4.4.0/mqtt-cli-4.4.0.deb && apt install -y ./mqtt-cli-4.4.0.deb; rm -rf /var/lib/apt/lists/*
 
 # Set the working directory to /mpd2mqtt
 WORKDIR /mpd2mqtt
 
-# Copy the current directory contents into the container at /mpd2mqtt
-ADD . /mpd2mqtt
+# Copy needed files into the container at /mpd2mqtt
+ADD ./mpd2mqtt.sh /mpd2mqtt/
+ADD ./data/mpd2mqtt.config /mpd2mqtt/example.config
+
+VOLUME /data
 
 # Run script when the container launches
-CMD ["/mpd2mqtt/mpd2mqtt.sh", "--debug=1", "--mpd-server=localhost", "--mpd-password=secret", "--mqtt-server=localhost"]
+CMD ["/mpd2mqtt/mpd2mqtt.sh"]
+#Options should be set using the file 'mpd2mqtt.config' in volume '/data' - an example fill will be created on first run
+
+#CMD ["/mpd2mqtt/mpd2mqtt.sh", "--debug=1", "--mpd-server=localhost", "--mpd-password=secret", "--mqtt-server=localhost"]
 # All possible options:
 # --mpd-server=
 # --mpd-password=
