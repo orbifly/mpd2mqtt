@@ -36,7 +36,16 @@ On change of the current title or toggeling between playing and pause on MPD you
     }
 
 The current options of MPD will be send in a message like:
-`{ "options": { "volume": "98%", "repeat": "on", "random": "off", "single": "off", "consume": "off" }}`
+
+    {
+      "options": {
+        "volume": "98%",
+        "repeat": "on",
+        "random": "off",
+        "single": "off",
+        "consume": "off"
+      }
+    }
 
 About the playlist/queue it's not so easy to get something out of MPD, so there could be 3 cases:
 * We don't know anything about the playlist: `{ "playlist": { "type": "unknown", "displayName" : "<mixed>" } }`
