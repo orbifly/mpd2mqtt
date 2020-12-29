@@ -39,9 +39,9 @@ The current options of MPD will be send in a message like:
 `{ "options": { "volume": "98%", "repeat": "on", "random": "off", "single": "off", "consume": "off" }}`
 
 About the playlist/queue it's not so easy to get something out of MPD, so there could be 3 cases:
-* We don't know anything about the playlist: `{ "playlist": { "type": "unknown" } }`
-* All songs are from the same album: `{"playlist": { "type": "album", "album" : "The Rasmus - Dead Letters" } }`
-* All songs are from a common folder: `{"playlist": { "type": "folder", "folder" : "MixedMusic/preferredSongs" } }`
+* We don't know anything about the playlist: `{ "playlist": { "type": "unknown", "displayName" : "<mixed>" } }`
+* All songs are from the same album: `{"playlist": { "type": "album", "album" : "The Rasmus - Dead Letters", "displayName" : "The Rasmus - Dead Letters" } }`
+* All songs are from a common folder: `{"playlist": { "type": "folder", "folder" : "MixedMusic/preferredSongs", "displayName" : "MixedMusic/preferredSongs" } }`
 In my eyes it's not a good way to send the whole list of songs in playlist to MQTT.
 
 To debug or check it you can use the commandline mqtt client, from https://github.com/hivemq/mqtt-cli:

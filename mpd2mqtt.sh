@@ -136,7 +136,7 @@ update_mpd_playlist_state()
   if [ "${album_count}" = "1" ]
   then
     echo "Message:  {\"playlist\": { \"type\": \"album\", \"album\" : \"${albums}\" } }"
-    mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"playlist\": { \"type\": \"album\", \"album\" : \"${albums}\" } }"
+    mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"playlist\": { \"type\": \"album\", \"album\" : \"${albums}\", \"displayName\" : \"${albums}\"} }"
     return
   fi
   folders=$( mpc --host="${mpd_host}" --port="${mpd_port}" playlist --format "%file%" | sed "s#/[^/]*\$##" | sort | uniq )
@@ -144,11 +144,11 @@ update_mpd_playlist_state()
   if [ "${folder_count}" = "1" ]
   then
     echo "Message:  {\"playlist\": { \"type\": \"folder\", \"folder\" : \"${folder}\" } }"
-    mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"playlist\": { \"type\": \"folder\", \"folder\" : \"${folders}\" } }"
+    mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"playlist\": { \"type\": \"folder\", \"folder\" : \"${folders}\", \"displayName\" : \"${folders}\" } }"
     return
   fi
   echo "Message:  {\"playlist\": { \"type\": \"unknown\" } }"
-  mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"playlist\": { \"type\": \"unknown\" } }"
+  mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"playlist\": { \"type\": \"unknown\", \"displayName\" : \"<mixed>\" } }"
 }
 
 update_mpd_options_state()
