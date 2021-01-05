@@ -111,8 +111,10 @@ mpd_format="{
   \"mdate\": \"%mdate%\"
 }"
 
+
 update_mpd_player_state()
 {
+  if [ "${debug}" != "0" ]; then echo "update_mpd_player_state()"; fi
   current_song_json=$( mpc --host="${mpd_host}" --port="${mpd_port}" current --format="${mpd_format}" )
   current_state=$( mpc --host="${mpd_host}" --port="${mpd_port}" status | grep "^\[.*\]" | tail -n 1 )
   if [ "${current_state}" != "" ]
@@ -131,28 +133,39 @@ update_mpd_player_state()
 
 update_mpd_playlist_state()
 {
+  if [ "${debug}" != "0" ]; then echo "update_mpd_playlist_state()"; fi
   albums=$( mpc --host="${mpd_host}" --port="${mpd_port}" playlist --format "%artist% - %album%" | sort | uniq )
   album_count=$( echo "${albums}" | grep -c "..*" )
   if [ "${album_count}" = "1" ]
   then
-    echo "Message:  {\"playlist\": { \"type\": \"album\", \"album\" : \"${albums}\" } }"
-    mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"playlist\": { \"type\": \"album\", \"album\" : \"${albums}\", \"displayName\" : \"${albums}\"} }"
+    if [ "${debug}" != "0" ]
+    then
+      echo "Message:  {\"playlist\": { \"type\": \"album\", \"album\" : \"${albums}\" , \"displayName\" : \"${albums}\" } }"
+    fi
+    mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"playlist\": { \"type\": \"album\", \"album\" : \"${albums}\", \"displayName\" : \"${albums}\" } }"
     return
   fi
   folders=$( mpc --host="${mpd_host}" --port="${mpd_port}" playlist --format "%file%" | sed "s#/[^/]*\$##" | sort | uniq )
   folder_count=$( echo "${folders}" | grep -c "..*" )
   if [ "${folder_count}" = "1" ]
   then
-    echo "Message:  {\"playlist\": { \"type\": \"folder\", \"folder\" : \"${folder}\" } }"
+    if [ "${debug}" != "0" ]
+    then
+      echo "Message:  {\"playlist\": { \"type\": \"folder\", \"folder\" : \"${folder}\", \"displayName\" : \"${folders}\" } }"
+    fi
     mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"playlist\": { \"type\": \"folder\", \"folder\" : \"${folders}\", \"displayName\" : \"${folders}\" } }"
     return
   fi
-  echo "Message:  {\"playlist\": { \"type\": \"unknown\" } }"
+  if [ "${debug}" != "0" ]
+  then
+    echo "Message:  {\"playlist\": { \"type\": \"unknown\", \"displayName\" : \"<mixed>\" } }"
+  fi
   mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"playlist\": { \"type\": \"unknown\", \"displayName\" : \"<mixed>\" } }"
 }
 
 update_mpd_options_state()
 {
+  if [ "${debug}" != "0" ]; then echo "update_mpd_options_state()"; fi
   current_status=$( mpc --host="${mpd_host}" --port="${mpd_port}" status | grep "^volume:" | tail -n 1 )
   current_status_json=$( echo "${current_status}" | sed -e "s#\([^ ]*\): *\([^ ]*\)#\"\1\": \"\2\",#g" -e "s#^#{ \"options\": { #" -e "s#,\$# } }#" )
   if [ "${debug}" != "0" ]
@@ -164,6 +177,7 @@ update_mpd_options_state()
 
 validate_mpd_states()
 {
+  if [ "${debug}" != "0" ]; then echo "validate_mpd_states()"; fi
   #Wait here to collect some invalidations. Use random to avoid to precise time overlap
   sleep "0.$( expr "100" "+" $RANDOM "%" "100" )"
   # Find entries in file. f there are delete them in a in-place operation.
@@ -171,21 +185,18 @@ validate_mpd_states()
   if [ "$?" = "0" ]
   then
     sed -e "/player/ d" --in-place ${invalidate_file}
-    if [ "${debug}" != "0" ]; then echo "update_mpd_player_state"; fi
     update_mpd_player_state
   fi
   grep -c -q "playlist" ${invalidate_file}
   if [ "$?" = "0" ]
   then
     sed -e "/playlist/ d" --in-place ${invalidate_file}
-    if [ "${debug}" != "0" ]; then echo "update_mpd_playlist_state ${mpd_playlist_state_valide}"; fi
     update_mpd_playlist_state
   fi
   grep -c -q "options" ${invalidate_file}
   if [ "$?" = "0" ]
   then
-    sed -e "/options/ d" --in-place ${invalidate_file}
-    if [ "${debug}" != "0" ]; then echo "update_mpd_options_state ${mpd_options_state_valide}"; fi
+    if [ "${debug}" != "0" ]; then echo "update_mpd_options_state"; fi
     update_mpd_options_state
   fi
 }
@@ -241,6 +252,15 @@ interprete_mqtt_player_command()
       mpc --host="${mpd_host}" --port="${mpd_port}" "toggle"
     ;;
     "stop")
+      mpc --host="${mpd_host}" --port="${mpd_port}" "${command}"
+    ;;
+    "next")
+      mpc --host="${mpd_host}" --port="${mpd_port}" "${command}"
+    ;;
+    "prev")
+      mpc --host="${mpd_host}" --port="${mpd_port}" "${command}"
+    ;;
+    "update")
       mpc --host="${mpd_host}" --port="${mpd_port}" "${command}"
     ;;
     "*")
@@ -310,6 +330,7 @@ interprete_mqtt_options_command()
 
 interprete_mqtt_command()
 {
+  if [ "${debug}" != "0" ]; then echo "interprete_mqtt_command()"; fi
   inner_json=$( echo "$1" | sed "s#^ *{ *\(.*\) *} *\$#\1#" )
   command_name=$( echo "${inner_json}" | sed "s#^\"\([^\"]*\)\" *:.*\$#\1#" )
   command=$( echo "${inner_json}" | sed "s#^\"${command_name}\" *:\(.*\)\$#\1#" )
@@ -344,8 +365,19 @@ mpc --host="${mpd_host}" --port="${mpd_port}" status
 if [ "$?" != "0" ]
 then
   echo "Mpc got an error - exit script." >&2
-  ping "${mpd_host}" -c 1
+  ping "${mpd_server}" -c 1
   exit 2
+fi
+
+#MQTT test
+mqtt_test_results=$( mqtt test -h "${mqtt_server}" )
+if [ "${debug}" != "0" ]; then echo "${mqtt_test_results}"; fi
+echo "${mqtt_test_results}" | grep -q "OK"
+if [ "$?" != "0" ]
+then
+  echo "Mqtt failed to test host - exit script." >&2
+  ping "${mqtt_server}" -c 1
+  exit 3
 fi
 
 #send initial states to MQTT

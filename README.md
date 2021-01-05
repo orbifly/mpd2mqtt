@@ -1,11 +1,11 @@
 # mpd2mqtt #
 ## Connects a MPD (music player) with MQTT (broker) in both ways. ##
 
-This can be helpfull if you want to connect a MPD with a node-red.
+This can be helpful if you want to connect a MPD with a node-red.
 The connection is both-ways: If any client changes the state of MPD the MQTT will be informed. On the other hand you can operate your MPD by sending messages to MQTT broker.
 
 ## MPD -> MQTT ##
-On change of the current title or toggeling between playing and pause on MPD you will get a message on MQTT at topic *music/mpd/get* like:
+On change of the current title or toggle between playing and pause on MPD you will get a message on MQTT at topic *music/mpd/get* like:
 
     {
       "player": {
@@ -53,7 +53,7 @@ About the playlist/queue it's not so easy to get something out of MPD, so there 
 * All songs are from a common folder: `{"playlist": { "type": "folder", "folder" : "MixedMusic/preferredSongs", "displayName" : "MixedMusic/preferredSongs" } }`
 In my eyes it's not a good way to send the whole list of songs in playlist to MQTT.
 
-To debug or check it you can use the commandline mqtt client, from https://github.com/hivemq/mqtt-cli:
+To debug or check it you can use the [commandline mqtt client](https://github.com/hivemq/mqtt-cli):
 `mqtt sub -h localhost -t "music/mpd/get"`
 
 ## MQTT -> MPD ##
@@ -61,13 +61,17 @@ You can change the payers state by, sending something to the topic *music/mpd/se
 * `{"player": "play"}`
 * `{"player": "pause"}`
 * `{"player": "toggle"}`
+* `{"player": "next"}`
+* `{"player": "prev"}`
+* `{"player": "stop"}`
+* `{"player": "update"}`
 
 It's possible to change options by:
 * `{"options": { "random": "on"} }`
 * `{"options": { "replaygain": "track"} }`
 * `{"options": { "volume": "+3"} }`
 
-To debug or check it you can use the commandline mqtt client, from https://github.com/hivemq/mqtt-cli:
+To debug or check it you can use the [commandline mqtt client](https://github.com/hivemq/mqtt-cli):
    `mqtt pub -h localhost -t "music/mpd/set" -m '{"player":"toggle"}'`
 
 ## How to checkout and create a docker container and run it: ##
@@ -88,14 +92,21 @@ To debug or check it you can use the commandline mqtt client, from https://githu
       docker run --name my_mpd2mqtt -v /opt/config_mpd2mqtt:/data mpd2mqtt
       
 ### How to integrate in docker-compose: ###
-Create a docker-compose.yml or extend a existing one. This project fits to [ct-Smart-Home](https://github.com/ct-Open-Source/ct-Smart-Home).
+Create a docker-compose.yml or extend a existing one. Add the following lines if you build the container as described above.
 
-      mpd2mqtt:
-        image: "mpd2mqtt"
-        volumes:
-           - /opt/config_mpd2mqtt:/data
-        restart: always
+    mpd2mqtt:
+      image: "mpd2mqtt"
+      volumes:
+          - /opt/config_mpd2mqtt:/data
+      restart: always
 
+This project fits to [ct-Smart-Home](https://github.com/ct-Open-Source/ct-Smart-Home). A container is available on Docker Hub, so you just have to add the following lines to docker-compose.yml
+
+    mpd2mqtt:
+      image: "orbifly/mpd2mqtt:latest-armv7"
+      volumes:
+        - ./data/mpd2mqtt:/data
+      restart: always
 
 ## Some words about security: ##
 The idea for this is to make the connection between a frontend system (in my case node-red) and a MPD backend lightweight and indirect. So it is easy to run it on different server, just connected over MQTT. It will increase security as well, because you don't need access to a command line from node-red (exec-node).
