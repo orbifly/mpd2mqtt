@@ -269,88 +269,84 @@ interprete_mqtt_player_command()
   esac
 }
 
+interprete_mqtt_option_onofftoggle()
+{
+  if [ "${debug}" != "0" ]
+  then
+    echo "interprete_mqtt_option_onofftoggle( $1, $2 )"
+  fi
+
+  command_name="$2"
+  command="$( echo "$1" | jq --compact-output --raw-output ".$2" )"
+
+  if [ "${command}" = "null" ]
+  then
+    if [ "${debug}" != "0" ]; then echo "No option '$2'."; fi
+    return 1
+  fi
+
+  if [ "${command}" != "" ]
+  then
+    mpc --host="${mpd_host}" --port="${mpd_port}" "${command_name}" "${command}"
+  else
+    mpc --host="${mpd_host}" --port="${mpd_port}" "${command_name}"
+  fi
+}
+
 interprete_mqtt_options_command()
 {
   if [ "${debug}" != "0" ]
   then
     echo "interprete_mqtt_options_command( $1 )"
   fi
-
-  inner_json=$( echo "$1" | sed "s#^ *{ *\(.*\) *} *\$#\1#" )
-  command_name=$( echo "${inner_json}" | sed "s#^\"\([^\"]*\)\" *:.*\$#\1#" )
-  command=$( echo "${inner_json}" | sed "s#^\"${command_name}\" *:\(.*\)\$#\1#" )
-
-  #strip spaces
-  command=$( echo "${command}" | sed -e "s#^ *##" -e "s# *\$##" )
-  #strip quotes
-  command=$( echo "${command}" | sed -e "s#^\"\(.*\)\"\$#\1#" )
-  if [ "${debug}" != "0" ]
-  then
-    echo "inner JSON:  ${inner_json}"
-    echo "commandName:  ${command_name}"
-    echo "command:  ${command}"
-  fi
   
-  case "${command_name}" in
-    "random") #<on|off>
-      if [ "${command}" != "" ]
-      then
-        mpc --host="${mpd_host}" --port="${mpd_port}" "${command_name}" "${command}"
-      else
-        mpc --host="${mpd_host}" --port="${mpd_port}" "${command_name}"
-      fi
-    ;;
-    "repeat") #<on|off>
-      if [ "${command}" != "" ]
-      then
-        mpc --host="${mpd_host}" --port="${mpd_port}" "${command_name}" "${command}"
-      else
-        mpc --host="${mpd_host}" --port="${mpd_port}" "${command_name}"
-      fi
-    ;;
-    "replaygain") #[<off|track|album>]
-      mpc --host="${mpd_host}" --port="${mpd_port}" "${command_name}" "${command}"
-    ;;
-    "single") #<on|off>
-      if [ "${command}" != "" ]
-      then
-        mpc --host="${mpd_host}" --port="${mpd_port}" "${command_name}" "${command}"
-      else
-        mpc --host="${mpd_host}" --port="${mpd_port}" "${command_name}"
-      fi
-    ;;
-    "volume") #[+-]<num>
-      mpc --host="${mpd_host}" --port="${mpd_port}" "${command_name}" "${command}"
-    ;;
-    "*")
-      echo "Unknown command for options: \"${command_name}\" full message was \"${inner_json}\"" >&2
-    ;;
-  esac
+  interprete_mqtt_option_onofftoggle "$1" "random"
+  interprete_mqtt_option_onofftoggle "$1" "repeat"
+  interprete_mqtt_option_onofftoggle "$1" "single"
+  
+  replaygain=$( echo "$1" | jq --compact-output --raw-output '.replaygain' )
+  if [ "${replaygain}" != "null" ]
+  then
+    if [ "${replaygain}" != "off"  -o  "${replaygain}" != "track"  -o  "${replaygain}" != "album" ]
+    then
+      mpc --host="${mpd_host}" --port="${mpd_port}" "replaygain" "${replaygain}"
+    else
+      echo "The option replaygain must have one of the values: 'off', 'track' or 'album'." >&2
+    fi
+  fi
+
+  volume=$( echo "$1" | jq --compact-output --raw-output '.volume' )
+  if [ "${volume}" != "null" ]
+  then
+    wrong_chars=$( echo "${volume}" | sed "s#[+-]\?[0-9]\+##" )
+    if [ "${volume}" != ""  -a  "${wrong_chars}" = "" ]
+    then
+      mpc --host="${mpd_host}" --port="${mpd_port}" "volume" "${volume}"
+    else
+      echo "The option volume must have a value with format: '[-+]<num>'" >&2
+    fi
+  fi
 }
 
 interprete_mqtt_command()
 {
   if [ "${debug}" != "0" ]; then echo "interprete_mqtt_command()"; fi
-  inner_json=$( echo "$1" | sed "s#^ *{ *\(.*\) *} *\$#\1#" )
-  command_name=$( echo "${inner_json}" | sed "s#^\"\([^\"]*\)\" *:.*\$#\1#" )
-  command=$( echo "${inner_json}" | sed "s#^\"${command_name}\" *:\(.*\)\$#\1#" )
-  if [ "${debug}" != "0" ]
+  player=$(  echo "$1" | jq --compact-output --raw-output ".player" )
+  options=$( echo "$1" | jq --compact-output --raw-output ".options" )
+  if [ "${debug}" != "0" ]; then echo "player=${player}   options=${options}";  fi
+
+  if [ "${player}" != "null" ]
   then
-    echo "inner JSON:  ${inner_json}"
-    echo "commandName:  ${command_name}"
-    echo "command:  ${command}"
+    interprete_mqtt_player_command "${player}"
   fi
-  case ${command_name} in
-    "player")
-      interprete_mqtt_player_command "${command}"
-    ;;
-    "options")
-      interprete_mqtt_options_command "${command}"
-    ;;
-    "*")
-      echo "Unknown command from mqtt: \"${command_name}\" full message was \"$1\"" >&2
-    ;;
-  esac
+  if [ "${options}" != "null" ]
+  then
+    interprete_mqtt_options_command "${options}"
+  fi
+  if [ "${player}" = "null"  -a  "${options}" = "null" ]
+  then
+    echo "Unknown command from mqtt: \"${command_name}\" full message was \"$1\"" >&2
+  fi
 }
 
 loop_for_mqtt_set()
