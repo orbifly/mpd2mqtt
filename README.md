@@ -69,7 +69,15 @@ You can change the payers state by, sending something to the topic *music/mpd/se
 It's possible to change options by:
 * `{"options": { "random": "on"} }`
 * `{"options": { "replaygain": "track"} }`
+* `{"options": { "consume": "off"} }`
+* `{"options": { "repeat": "on"} }`
+* `{"options": { "single": "off"} }`
 * `{"options": { "volume": "+3"} }`
+
+You can change your queue:
+* `{"queue": { { "clear": "true", "add": "MixedMusic/preferredSongs", "play": "true" } } }`
+* `{"queue": { { "clear": "false", "del": "3" } } }`
+* `{"queue": { { "clear": "false", "insert": "MixedMusic/preferredSongs/I want to hear next.mp3", "play": "true" } } }`
 
 To debug or check it you can use the [commandline mqtt client](https://github.com/hivemq/mqtt-cli):
    `mqtt pub -h localhost -t "music/mpd/set" -m '{"player":"toggle"}'`
