@@ -303,6 +303,7 @@ interprete_mqtt_options_command()
   interprete_mqtt_option_onofftoggle "$1" "random"
   interprete_mqtt_option_onofftoggle "$1" "repeat"
   interprete_mqtt_option_onofftoggle "$1" "single"
+  interprete_mqtt_option_onofftoggle "$1" "consume"
   
   replaygain=$( echo "$1" | jq --compact-output --raw-output '.replaygain' )
   if [ "${replaygain}" != "null" ]
@@ -328,11 +329,52 @@ interprete_mqtt_options_command()
   fi
 }
 
+interprete_mqtt_queue_command()
+{
+  if [ "${debug}" != "0" ]; then echo "interprete_mqtt_queue_command( $1 )"; fi
+  del=$( echo "$1" | jq --compact-output --raw-output '.del' )
+  clear=$( echo "$1" | jq --compact-output --raw-output '.clear' )
+  insert=$( echo "$1" | jq --compact-output --raw-output '.insert' )
+  add=$( echo "$1" | jq --compact-output --raw-output '.add' )
+  play=$( echo "$1" | jq --compact-output --raw-output '.play' )
+  if [ "${del}" != "null"  -a  "${del}" != "" ]
+  then
+    mpc --host="${mpd_host}" --port="${mpd_port}" "del" "${del}"
+  fi
+  if [ "${clear}" != "null"  -a  "${clear}" != "" ]
+  then
+    #to lower case
+    clear=$( echo "${clear}" | sed "s/\([A-Z]\)/\L\1/g" )
+    if [ "${clear}" = "on"  -o  "${clear}" = "yes"  -o  "${clear}" = "true"  -o  "${clear}" = "1" ]
+    then
+      mpc --host="${mpd_host}" --port="${mpd_port}" "clear"
+    fi
+  fi
+  if [ "${insert}" != "null"  -a  "${insert}" != "" ]
+  then
+    mpc --host="${mpd_host}" --port="${mpd_port}" "insert" "${insert}"
+  fi
+  if [ "${add}" != "null"  -a  "${add}" != "" ]
+  then
+    mpc --host="${mpd_host}" --port="${mpd_port}" "add" "${add}"
+  fi
+  if [ "${play}" != "null"  -a  "${play}" != "" ]
+  then
+    #to lower case
+    play=$( echo "${play}" | sed "s/\([A-Z]\)/\L\1/g" )
+    if [ "${play}" = "on"  -o  "${play}" = "yes"  -o  "${play}" = "true"  -o  "${play}" = "1" ]
+    then
+      mpc --host="${mpd_host}" --port="${mpd_port}" "play"
+    fi
+  fi
+}
+
 interprete_mqtt_command()
 {
   if [ "${debug}" != "0" ]; then echo "interprete_mqtt_command()"; fi
   player=$(  echo "$1" | jq --compact-output --raw-output ".player" )
   options=$( echo "$1" | jq --compact-output --raw-output ".options" )
+  queue=$( echo "$1" | jq --compact-output --raw-output ".queue" )
   if [ "${debug}" != "0" ]; then echo "player=${player}   options=${options}";  fi
 
   if [ "${player}" != "null" ]
@@ -343,7 +385,11 @@ interprete_mqtt_command()
   then
     interprete_mqtt_options_command "${options}"
   fi
-  if [ "${player}" = "null"  -a  "${options}" = "null" ]
+  if [ "${queue}" != "null" ]
+  then
+    interprete_mqtt_queue_command "${queue}"
+  fi
+  if [ "${player}" = "null"  -a  "${options}" = "null"  -a  "${queue}" = "null" ]
   then
     echo "Unknown command from mqtt: \"${command_name}\" full message was \"$1\"" >&2
   fi
