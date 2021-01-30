@@ -12,6 +12,7 @@ WORKDIR /mpd2mqtt
 # Copy needed files into the container at /mpd2mqtt
 ADD ./mpd2mqtt.sh /mpd2mqtt/
 ADD ./data/mpd2mqtt.config /mpd2mqtt/example.config
+ADD ./LICENSE /mpd2mqtt/
 
 VOLUME /data
 

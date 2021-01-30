@@ -2,6 +2,49 @@
 
 echo "Started mpd2mqtt.sh '$0' $@"
 
+cp /mpd2mqtt/LICENSE /data/
+
+# Make it possible to stop by Ctrl+c in interactive container.
+cleanup ()
+{
+  # Kill the most recent background command.
+  kill -s SIGTERM $!
+  exit 0
+}
+trap cleanup SIGINT SIGTERM
+
+# Use some central logging functions
+logfile="/data/mpd2mqtt.log"
+short_logfile()
+{
+  if [ $( expr "$RANDOM" "%" "100" ) -lt "1" ]
+  then
+    if [ $( grep "." --count "${logfile}" ) -gt "1000" ]
+    then
+      temp_file=$( tempfile )
+      tail --lines=100 "${logfile}" > ${temp_file}
+      mv --force ${temp_file} ${logfile}
+    fi
+  fi
+}
+
+log_info()
+{
+  short_logfile
+  if [ "${debug}" != "0" ]
+  then
+    echo "Option: $1"
+    date "+%x %X : $1" >> ${logfile}
+  fi
+}
+
+log_error()
+{
+  short_logfile
+  echo "$1" >&2
+  date "+%x %X : $1" >> ${logfile}
+}
+
 # Default parameter setting
 mpd_server="localhost"
 mpd_password=""
@@ -14,21 +57,22 @@ if [ -f "/data/mpd2mqtt.config" ]
 then
   # Read parameters from config file
   eval "$( grep --regexp="^[a-z][a-z_]*='[^']*'" "/data/mpd2mqtt.config" )"
-  if [ "${debug}" != "0" ]; then echo "Read parameters from '/data/mpd2mqtt.config'"; fi
+  log_info "Read parameters from '/data/mpd2mqtt.config'"
 else
   if [ -f "./example.config" ]
   then
-    if [ "${debug}" != "0" ]; then echo "Create config file: /data/mpd2mqtt.config"; fi
+    log_info "Create config file: /data/mpd2mqtt.config"
     cp "./example.config" "/data/mpd2mqtt.config"
   fi
 fi
 invalidate_file=$( tempfile )
 
+
 read_parameters()
 {
   while [ $# -gt 0 ]       #Solange die Anzahl der Parameter ($#) größer 0
   do
-    if [ "${debug}" != "0" ]; then echo "Option: $1"; fi
+    log_info "Option: $1"
     option_name=$( echo $1 | sed "s#\(--.*=\).*\$#\1#" )
     option_value=$( echo $1 | sed "s#--.*=\(.*\)\$#\1#" )
     case "${option_name}" in
@@ -55,7 +99,7 @@ read_parameters()
         debug="${option_value}"
       ;;
       "*")
-        echo "Unknown command line option: \"$1\"" >&2
+        log_error "Unknown command line option: \"$1\""
         exit 1
       ;;
     esac
@@ -112,9 +156,10 @@ mpd_format="{
 }"
 
 
+
 update_mpd_player_state()
 {
-  if [ "${debug}" != "0" ]; then echo "update_mpd_player_state()"; fi
+  log_info "update_mpd_player_state()"
   current_song_json=$( mpc --host="${mpd_host}" --port="${mpd_port}" current --format="${mpd_format}" )
   current_state=$( mpc --host="${mpd_host}" --port="${mpd_port}" status | grep "^\[.*\]" | tail -n 1 )
   if [ "${current_state}" != "" ]
@@ -133,7 +178,7 @@ update_mpd_player_state()
 
 update_mpd_playlist_state()
 {
-  if [ "${debug}" != "0" ]; then echo "update_mpd_playlist_state()"; fi
+  log_info "update_mpd_playlist_state()"
   albums=$( mpc --host="${mpd_host}" --port="${mpd_port}" playlist --format "%artist% - %album%" | sort | uniq )
   album_count=$( echo "${albums}" | grep -c "..*" )
   if [ "${album_count}" = "1" ]
@@ -165,7 +210,7 @@ update_mpd_playlist_state()
 
 update_mpd_options_state()
 {
-  if [ "${debug}" != "0" ]; then echo "update_mpd_options_state()"; fi
+  log_info "update_mpd_options_state()"
   current_status=$( mpc --host="${mpd_host}" --port="${mpd_port}" status | grep "^volume:" | tail -n 1 )
   current_status_json=$( echo "${current_status}" | sed -e "s#\([^ ]*\): *\([^ ]*\)#\"\1\": \"\2\",#g" -e "s#^#{ \"options\": { #" -e "s#,\$# } }#" )
   if [ "${debug}" != "0" ]
@@ -177,7 +222,7 @@ update_mpd_options_state()
 
 validate_mpd_states()
 {
-  if [ "${debug}" != "0" ]; then echo "validate_mpd_states()"; fi
+  log_info "validate_mpd_states()"
   #Wait here to collect some invalidations. Use random to avoid to precise time overlap
   sleep "0.$( expr "100" "+" $RANDOM "%" "100" )"
   # Find entries in file. f there are delete them in a in-place operation.
@@ -196,34 +241,39 @@ validate_mpd_states()
   grep -c -q "options" ${invalidate_file}
   if [ "$?" = "0" ]
   then
-    if [ "${debug}" != "0" ]; then echo "update_mpd_options_state"; fi
+    log_info "update_mpd_options_state"
     update_mpd_options_state
   fi
 }
 
 loop_for_mpd_change()
 {
-  while IFS= read -r changed_topic
+  while [ true ]
   do
-    # Infos come up often here in a fast sequenced group. Want to prevent MQTT from flooding. We don't have mutex stuff here so use a file as queue with atomiv operations.
-    case ${changed_topic} in
-      "player")
-        echo ${changed_topic} >> ${invalidate_file}
-        validate_mpd_states &
-      ;;
-      "playlist")
-        echo ${changed_topic} >> ${invalidate_file}
-        validate_mpd_states &
-      ;;
-      "options")
-        echo ${changed_topic} >> ${invalidate_file}
-        validate_mpd_states &
-      ;;
-    esac
-  done < <( mpc --host="${mpd_host}" --port="${mpd_port}" idleloop "player" "playlist" "options" )
-  
-  #Clean up - but we will never reach this
-  rm ${invalidate_file}
+    while IFS= read -r changed_topic
+    do
+      # Infos come up often here in a fast sequenced group. Want to prevent MQTT from flooding. We don't have mutex stuff here so use a file as queue with atomiv operations.
+      case ${changed_topic} in
+        "player")
+          echo ${changed_topic} >> ${invalidate_file}
+          validate_mpd_states &
+        ;;
+        "playlist")
+          echo ${changed_topic} >> ${invalidate_file}
+          validate_mpd_states &
+        ;;
+        "options")
+          echo ${changed_topic} >> ${invalidate_file}
+          validate_mpd_states &
+        ;;
+      esac
+    done < <( mpc --host="${mpd_host}" --port="${mpd_port}" idleloop "player" "playlist" "options" )
+    log_error "Connection to mpd lost."
+    #Clean up
+    rm ${invalidate_file}
+    sleep 60
+    log_info "Try reconnect to mpd."
+  done
 }
 
 interprete_mqtt_player_command()
@@ -264,7 +314,7 @@ interprete_mqtt_player_command()
       mpc --host="${mpd_host}" --port="${mpd_port}" "${command}"
     ;;
     "*")
-      echo "Unknown command for options: \"${command}\" full message was \"$1\"" >&2
+      log_error "Unknown command for options: \"${command}\" full message was \"$1\""
     ;;
   esac
 }
@@ -281,7 +331,7 @@ interprete_mqtt_option_onofftoggle()
 
   if [ "${command}" = "null" ]
   then
-    if [ "${debug}" != "0" ]; then echo "No option '$2'."; fi
+    log_info "No option '$2'."
     return 1
   fi
 
@@ -312,7 +362,7 @@ interprete_mqtt_options_command()
     then
       mpc --host="${mpd_host}" --port="${mpd_port}" "replaygain" "${replaygain}"
     else
-      echo "The option replaygain must have one of the values: 'off', 'track' or 'album'." >&2
+      log_error "The option replaygain must have one of the values: 'off', 'track' or 'album'."
     fi
   fi
 
@@ -324,14 +374,14 @@ interprete_mqtt_options_command()
     then
       mpc --host="${mpd_host}" --port="${mpd_port}" "volume" "${volume}"
     else
-      echo "The option volume must have a value with format: '[-+]<num>'" >&2
+      log_error "The option volume must have a value with format: '[-+]<num>'"
     fi
   fi
 }
 
 interprete_mqtt_queue_command()
 {
-  if [ "${debug}" != "0" ]; then echo "interprete_mqtt_queue_command( $1 )"; fi
+  log_info "interprete_mqtt_queue_command( $1 )"
   del=$( echo "$1" | jq --compact-output --raw-output '.del' )
   clear=$( echo "$1" | jq --compact-output --raw-output '.clear' )
   insert=$( echo "$1" | jq --compact-output --raw-output '.insert' )
@@ -371,11 +421,11 @@ interprete_mqtt_queue_command()
 
 interprete_mqtt_command()
 {
-  if [ "${debug}" != "0" ]; then echo "interprete_mqtt_command()"; fi
+  log_info "interprete_mqtt_command()"
   player=$(  echo "$1" | jq --compact-output --raw-output ".player" )
   options=$( echo "$1" | jq --compact-output --raw-output ".options" )
   queue=$( echo "$1" | jq --compact-output --raw-output ".queue" )
-  if [ "${debug}" != "0" ]; then echo "player=${player}   options=${options}";  fi
+  log_info "player=${player}   options=${options}"
 
   if [ "${player}" != "null" ]
   then
@@ -391,33 +441,39 @@ interprete_mqtt_command()
   fi
   if [ "${player}" = "null"  -a  "${options}" = "null"  -a  "${queue}" = "null" ]
   then
-    echo "Unknown command from mqtt: \"${command_name}\" full message was \"$1\"" >&2
+    log_error "Unknown command from mqtt: \"${command_name}\" full message was \"$1\""
   fi
 }
 
 loop_for_mqtt_set()
 {
-  while IFS= read -r line
+  while [ true ]
   do
-    interprete_mqtt_command "${line}" &
-  done < <( mqtt sub -h "${mqtt_server}" -t "${mqtt_topic_set}" )
+    while IFS= read -r line
+    do
+      interprete_mqtt_command "${line}" &
+    done < <( mqtt sub -h "${mqtt_server}" -t "${mqtt_topic_set}" )
+    log_error "Connection to mqtt lost."
+    sleep 60
+    log_info "Try reconnect to mqtt."
+  done
 }
 
 mpc --host="${mpd_host}" --port="${mpd_port}" status
 if [ "$?" != "0" ]
 then
-  echo "Mpc got an error - exit script." >&2
+  log_error "Mpc got an error - exit script."
   ping "${mpd_server}" -c 1
   exit 2
 fi
 
 #MQTT test
 mqtt_test_results=$( mqtt test -h "${mqtt_server}" )
-if [ "${debug}" != "0" ]; then echo "${mqtt_test_results}"; fi
+log_info "${mqtt_test_results}"
 echo "${mqtt_test_results}" | grep -q "OK"
 if [ "$?" != "0" ]
 then
-  echo "Mqtt failed to test host - exit script." >&2
+  log_error "Mqtt failed to test host - exit script."
   ping "${mqtt_server}" -c 1
   exit 3
 fi
