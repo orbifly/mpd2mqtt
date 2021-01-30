@@ -30,10 +30,10 @@ short_logfile()
 
 log_info()
 {
-  short_logfile
   if [ "${debug}" != "0" ]
   then
-    echo "Option: $1"
+    short_logfile
+    echo "$1"
     date "+%x %X : $1" >> ${logfile}
   fi
 }
