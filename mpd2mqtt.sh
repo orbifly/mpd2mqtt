@@ -159,7 +159,7 @@ mpd_format="{
 send_to_mqtt()  #$1 = message
 {
   #use a timeout to avoid a flood of waiting threads.
-  timeout 10   mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "$1"
+  timeout 10   mosquitto_pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "$1"
 }
 
 
@@ -458,7 +458,7 @@ loop_for_mqtt_set()
     while IFS= read -r line
     do
       interprete_mqtt_command "${line}" &
-    done < <( mqtt sub -h "${mqtt_server}" -t "${mqtt_topic_set}" )
+    done < <( mosquitto_sub -h "${mqtt_server}" -t "${mqtt_topic_set}" )
     log_error "Connection to mqtt lost."
     sleep 60
     log_info "Try reconnect to mqtt."
@@ -474,9 +474,7 @@ then
 fi
 
 #MQTT test
-mqtt_test_results=$( mqtt test -h "${mqtt_server}" )
-log_info "${mqtt_test_results}"
-echo "${mqtt_test_results}" | grep -q "OK"
+mosquitto_pub -h 192.168.2.17 -t "music/mpd/get" --null-message
 if [ "$?" != "0" ]
 then
   log_error "Mqtt failed to test host - exit script."
