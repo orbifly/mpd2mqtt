@@ -156,6 +156,12 @@ mpd_format="{
 }"
 
 
+send_to_mqtt()  #$1 = message
+{
+  #use a timeout to avoid a flood of waiting threads.
+  timeout 10   mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "$1"
+}
+
 
 update_mpd_player_state()
 {
@@ -173,7 +179,7 @@ update_mpd_player_state()
   then
     echo "Message:  {\"player\": { \"current\" : ${current_song_json}, \"state\": \"${current_state}\" } }"
   fi
-  mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"player\": { \"current\" : ${current_song_json}, \"state\": \"${current_state}\" } }"
+  send_to_mqtt "{\"player\": { \"current\" : ${current_song_json}, \"state\": \"${current_state}\" } }"
 }
 
 update_mpd_playlist_state()
@@ -187,7 +193,7 @@ update_mpd_playlist_state()
     then
       echo "Message:  {\"playlist\": { \"type\": \"album\", \"album\" : \"${albums}\" , \"displayName\" : \"${albums}\" } }"
     fi
-    mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"playlist\": { \"type\": \"album\", \"album\" : \"${albums}\", \"displayName\" : \"${albums}\" } }"
+    send_to_mqtt "{\"playlist\": { \"type\": \"album\", \"album\" : \"${albums}\", \"displayName\" : \"${albums}\" } }"
     return
   fi
   folders=$( mpc --host="${mpd_host}" --port="${mpd_port}" playlist --format "%file%" | sed "s#/[^/]*\$##" | sort | uniq )
@@ -198,14 +204,14 @@ update_mpd_playlist_state()
     then
       echo "Message:  {\"playlist\": { \"type\": \"folder\", \"folder\" : \"${folder}\", \"displayName\" : \"${folders}\" } }"
     fi
-    mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"playlist\": { \"type\": \"folder\", \"folder\" : \"${folders}\", \"displayName\" : \"${folders}\" } }"
+    send_to_mqtt "{\"playlist\": { \"type\": \"folder\", \"folder\" : \"${folders}\", \"displayName\" : \"${folders}\" } }"
     return
   fi
   if [ "${debug}" != "0" ]
   then
     echo "Message:  {\"playlist\": { \"type\": \"unknown\", \"displayName\" : \"<mixed>\" } }"
   fi
-  mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "{\"playlist\": { \"type\": \"unknown\", \"displayName\" : \"<mixed>\" } }"
+  send_to_mqtt "{\"playlist\": { \"type\": \"unknown\", \"displayName\" : \"<mixed>\" } }"
 }
 
 update_mpd_options_state()
@@ -217,7 +223,7 @@ update_mpd_options_state()
   then
     echo "Message:  ${current_status_json}"
   fi
-  mqtt pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "${current_status_json}"
+  send_to_mqtt "${current_status_json}"
 }
 
 validate_mpd_states()
