@@ -474,7 +474,7 @@ then
 fi
 
 #MQTT test
-mosquitto_pub -h 192.168.2.17 -t "music/mpd/get" --null-message
+mosquitto_pub -h "${mqtt_server}" -t "${mqtt_topic_set}" --null-message
 if [ "$?" != "0" ]
 then
   log_error "Mqtt failed to test host - exit script."
