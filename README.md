@@ -53,8 +53,8 @@ About the playlist/queue it's not so easy to get something out of MPD, so there 
 * All songs are from a common folder: `{"playlist": { "type": "folder", "folder" : "MixedMusic/preferredSongs", "displayName" : "MixedMusic/preferredSongs" } }`
 In my eyes it's not a good way to send the whole list of songs in playlist to MQTT.
 
-To debug or check it you can use the [commandline mqtt client](https://github.com/hivemq/mqtt-cli):
-`mqtt sub -h localhost -t "music/mpd/get"`
+To debug or check it you can use the commandline mqtt client:
+`mosquitto_sub -h localhost -t "music/mpd/get"`
 
 ## MQTT -> MPD ##
 You can change the payers state by, sending something to the topic *music/mpd/set*.
@@ -79,8 +79,8 @@ You can change your queue:
 * `{"queue": { { "clear": "false", "del": "3" } } }`
 * `{"queue": { { "clear": "false", "insert": "MixedMusic/preferredSongs/I want to hear next.mp3", "play": "true" } } }`
 
-To debug or check it you can use the [commandline mqtt client](https://github.com/hivemq/mqtt-cli):
-   `mqtt pub -h localhost -t "music/mpd/set" -m '{"player":"toggle"}'`
+To debug or check it you can use the commandline mqtt client:
+   `mosquitto_pub -h localhost -t "music/mpd/set" -m '{"player":"toggle"}'`
 
 ## How to checkout and create a docker container and run it: ##
       cd /opt
