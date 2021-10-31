@@ -52,6 +52,8 @@ mpd_port=""
 mqtt_server="localhost"
 mqtt_topic_get="music/mpd/get"
 mqtt_topic_set="music/mpd/set"
+mqtt_user=""
+mqtt_password=""
 debug="1"
 if [ -f "/data/mpd2mqtt.config" ]
 then
@@ -95,6 +97,12 @@ read_parameters()
       "--mqtt-topic-set=")
         mqtt_topic_set="${option_value}"
       ;;
+      "--mqtt_user=")
+        mqtt_user="${option_value}"
+      ;;
+      "--mqtt_password=")
+        mqtt_password="${option_value}"
+      ;;
       "--debug=")
         debug="${option_value}"
       ;;
@@ -119,6 +127,8 @@ then
   echo "mqtt_server = ${mqtt_server}"
   echo "mqtt_topic_get = ${mqtt_topic_get}"
   echo "mqtt_topic_set = ${mqtt_topic_set}"
+  echo "mqtt_user = ${mqtt_user}"
+  echo "mqtt_password = ${mqtt_password}"
 fi
 
 mpd_host="${mpd_server}"
@@ -159,7 +169,7 @@ mpd_format="{
 send_to_mqtt()  #$1 = message
 {
   #use a timeout to avoid a flood of waiting threads.
-  timeout 10   mosquitto_pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "$1"
+  timeout 10   mosquitto_pub  -h "${mqtt_server}" -t "${mqtt_topic_get}" -m "$1" -u "${mqtt_user}" -P "${mqtt_password}"
 }
 
 
@@ -458,7 +468,7 @@ loop_for_mqtt_set()
     while IFS= read -r line
     do
       interprete_mqtt_command "${line}" &
-    done < <( mosquitto_sub -h "${mqtt_server}" -t "${mqtt_topic_set}" )
+    done < <( mosquitto_sub -h "${mqtt_server}" -t "${mqtt_topic_set}" -u "${mqtt_user}" -P "${mqtt_password}" )
     log_error "Connection to mqtt lost."
     sleep 60
     log_info "Try reconnect to mqtt."
@@ -474,7 +484,7 @@ then
 fi
 
 #MQTT test
-mosquitto_pub -h "${mqtt_server}" -t "${mqtt_topic_set}" --null-message
+mosquitto_pub -h "${mqtt_server}" -t "${mqtt_topic_set}" --null-message  -u "${mqtt_user}" -P "${mqtt_password}"
 if [ "$?" != "0" ]
 then
   log_error "Mqtt failed to test host - exit script."
